@@ -5,47 +5,57 @@ using SmartTouristSafety.Services;
 using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
-//MVC
 
-// MVC + Web API controllers (both use the same [Controller] pipeline in ASP.NET Core)
+// MVC + Web API controllers
 builder.Services.AddControllersWithViews()
     .AddJsonOptions(options =>
     {
-        // Serialize enums (RiskLevel, IncidentSeverity, etc.) as their names ("Safe", "HighRisk")
-        // instead of raw numbers, so API responses and the front-end badges stay readable.
+        // Serialize enums as their names ("Safe", "HighRisk")
+        // instead of raw numbers.
         options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
     });
 
 // EF Core (SQLite file database)
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
+    options.UseSqlite(
+        builder.Configuration.GetConnectionString("DefaultConnection")
+    ));
 
-// HttpClient used for the live, worldwide police-station lookup (OpenStreetMap Overpass API)
+// HttpClient used for the live, worldwide police-station lookup
+// (OpenStreetMap Overpass API)
 builder.Services.AddHttpClient("Overpass", client =>
 {
     client.Timeout = TimeSpan.FromSeconds(20);
-    client.DefaultRequestHeaders.UserAgent.ParseAdd("SmartTouristSafety/1.0 (student project)");
+    client.DefaultRequestHeaders.UserAgent.ParseAdd(
+        "SmartTouristSafety/1.0 (student project)"
+    );
 });
 
-// HttpClient for the live, keyless GDELT news feed used by the dynamic risk engine
+// HttpClient for the live, keyless GDELT news feed
 builder.Services.AddHttpClient("Gdelt", client =>
 {
     client.Timeout = TimeSpan.FromSeconds(20);
-    client.DefaultRequestHeaders.UserAgent.ParseAdd("SmartTouristSafety/1.0 (student project)");
+    client.DefaultRequestHeaders.UserAgent.ParseAdd(
+        "SmartTouristSafety/1.0 (student project)"
+    );
 });
 
-// HttpClient for any generically-configured police/government open-data JSON feeds
+// HttpClient for external police/government JSON feeds
 builder.Services.AddHttpClient("ExternalReports", client =>
 {
     client.Timeout = TimeSpan.FromSeconds(20);
-    client.DefaultRequestHeaders.UserAgent.ParseAdd("SmartTouristSafety/1.0 (student project)");
+    client.DefaultRequestHeaders.UserAgent.ParseAdd(
+        "SmartTouristSafety/1.0 (student project)"
+    );
 });
 
-// HttpClient for the live, keyless OpenStreetMap Nominatim reverse-geocoding lookup
+// HttpClient for OpenStreetMap Nominatim reverse geocoding
 builder.Services.AddHttpClient("Nominatim", client =>
 {
     client.Timeout = TimeSpan.FromSeconds(10);
-    client.DefaultRequestHeaders.UserAgent.ParseAdd("SmartTouristSafety/1.0 (student project)");
+    client.DefaultRequestHeaders.UserAgent.ParseAdd(
+        "SmartTouristSafety/1.0 (student project)"
+    );
 });
 
 // Domain services
@@ -59,47 +69,108 @@ builder.Services.AddScoped<IPoliceStationService, PoliceStationService>();
 builder.Services.AddScoped<IReverseGeocodingService, NominatimReverseGeocodingService>();
 builder.Services.AddScoped<IChatbotService, ChatbotService>();
 
-// Automatic, real-world risk data ingestion — pluggable external report sources feeding the
-// dynamic risk engine. Add more IExternalReportSource implementations to plug in another feed.
-builder.Services.Configure<GdeltSourceOptions>(builder.Configuration.GetSection("ExternalReportSources:Gdelt"));
+// External report sources
+builder.Services.Configure<GdeltSourceOptions>(
+    builder.Configuration.GetSection("ExternalReportSources:Gdelt")
+);
+
 builder.Services.AddScoped<IExternalReportSource, GdeltNewsReportSource>();
 
 var genericSourceConfigs = builder.Configuration
     .GetSection("ExternalReportSources:GenericSources")
-    .Get<List<JsonReportSourceConfig>>() ?? new List<JsonReportSourceConfig>();
+    .Get<List<JsonReportSourceConfig>>()
+    ?? new List<JsonReportSourceConfig>();
+
 foreach (var sourceConfig in genericSourceConfigs)
 {
     builder.Services.AddScoped<IExternalReportSource>(sp =>
         new GenericJsonReportSource(
             sp.GetRequiredService<IHttpClientFactory>(),
             sourceConfig,
-            sp.GetRequiredService<ILogger<GenericJsonReportSource>>()));
+            sp.GetRequiredService<ILogger<GenericJsonReportSource>>()
+        )
+    );
 }
 
 builder.Services.AddScoped<IExternalReportIngestionService, ExternalReportIngestionService>();
+
 builder.Services.AddHostedService<ExternalReportSyncBackgroundService>();
 
-// Cookie authentication for the dashboard (Admin / Authority / Operator login)
-builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
-    .AddCookie(options =>
-    {
-        options.LoginPath = "/Account/Login";
-        options.AccessDeniedPath = "/Account/Login";
-        options.ExpireTimeSpan = TimeSpan.FromHours(8);
-    });
+// Cookie authentication
+builder.Services.AddAuthentication(
+    CookieAuthenticationDefaults.AuthenticationScheme
+)
+.AddCookie(options =>
+{
+    options.LoginPath = "/Account/Login";
+    options.AccessDeniedPath = "/Account/Login";
+    options.ExpireTimeSpan = TimeSpan.FromHours(8);
+});
 
 builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
-// Seed the database on startup (demo project — safe to EnsureCreated instead of migrations)
+
+// ============================================================
+// DATABASE SEEDING
+// ============================================================
+
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
     var blockchain = scope.ServiceProvider.GetRequiredService<IBlockchainService>();
     var hasher = scope.ServiceProvider.GetRequiredService<IPasswordHasher>();
+
     SeedData.Initialize(db, blockchain, hasher);
 }
+
+
+// ============================================================
+// TEMPORARY DATABASE MIGRATION FIX
+// ============================================================
+//
+// Your existing SmartTouristSafety.db already contains the
+// AreaReports table, but EF Core does not have
+// InitialCreate recorded in __EFMigrationsHistory.
+//
+// This code records InitialCreate as already applied.
+//
+// IMPORTANT:
+// Run the application ONCE with this code.
+// Then REMOVE this entire block from Program.cs.
+// ============================================================
+
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+    db.Database.OpenConnection();
+
+    using var command = db.Database.GetDbConnection().CreateCommand();
+
+    command.CommandText = """
+        CREATE TABLE IF NOT EXISTS "__EFMigrationsHistory" (
+            "MigrationId" TEXT NOT NULL
+                CONSTRAINT "PK___EFMigrationsHistory" PRIMARY KEY,
+            "ProductVersion" TEXT NOT NULL
+        );
+
+        INSERT OR IGNORE INTO "__EFMigrationsHistory"
+        ("MigrationId", "ProductVersion")
+        VALUES
+        ('20260916034250_InitialCreate', '10.0.0');
+        """;
+
+    command.ExecuteNonQuery();
+
+    db.Database.CloseConnection();
+}
+
+
+// ============================================================
+// HTTP PIPELINE
+// ============================================================
 
 if (!app.Environment.IsDevelopment())
 {
@@ -108,19 +179,24 @@ if (!app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
 app.UseStaticFiles();
 
 app.UseRouting();
 
 app.UseAuthentication();
+
 app.UseAuthorization();
 
-// Web API routes (attribute routed, e.g. /api/tourists)
+
+// Web API routes
 app.MapControllers();
 
-// MVC default route (e.g. /Tourists/Index, /Dashboard)
+
+// MVC default route
 app.MapControllerRoute(
     name: "default",
-    pattern: "{controller=Home}/{action=Index}/{id?}");
+    pattern: "{controller=Home}/{action=Index}/{id?}"
+);
 
 app.Run();
