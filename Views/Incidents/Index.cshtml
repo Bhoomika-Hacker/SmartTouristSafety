@@ -1,0 +1,43 @@
+@model List<Incident>
+@{
+    ViewData["Title"] = "Incidents";
+
+    string SeverityBadge(IncidentSeverity s) => s switch
+    {
+        IncidentSeverity.Low => "bg-success",
+        IncidentSeverity.Medium => "bg-warning text-dark",
+        IncidentSeverity.High => "bg-orange text-white",
+        IncidentSeverity.Critical => "bg-danger",
+        _ => "bg-secondary"
+    };
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2 class="section-title mb-0">Incidents</h2>
+    <a class="btn text-white" style="background-color: var(--sts-accent)" asp-action="Create"><i class="bi bi-plus-circle"></i> Report Incident</a>
+</div>
+
+<div class="table-card">
+    <table class="table table-hover mb-0 align-middle">
+        <thead class="table-light">
+            <tr><th>Tourist</th><th>Type</th><th>Severity</th><th>Status</th><th>Reported</th><th></th></tr>
+        </thead>
+        <tbody>
+        @if (!Model.Any())
+        {
+            <tr><td colspan="6" class="text-center text-muted py-4">No incidents recorded.</td></tr>
+        }
+        @foreach (var i in Model)
+        {
+            <tr>
+                <td>@i.Tourist?.FullName</td>
+                <td>@i.Type</td>
+                <td><span class="badge @SeverityBadge(i.Severity)">@i.Severity</span></td>
+                <td>@i.Status</td>
+                <td class="small">@i.ReportedAt.ToLocalTime().ToString("g")</td>
+                <td class="text-end"><a class="btn btn-sm btn-outline-primary" asp-action="Details" asp-route-id="@i.Id">View</a></td>
+            </tr>
+        }
+        </tbody>
+    </table>
+</div>

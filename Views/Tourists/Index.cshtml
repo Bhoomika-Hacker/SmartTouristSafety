@@ -1,0 +1,59 @@
+@model List<Tourist>
+@{
+    ViewData["Title"] = "Tourists";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2 class="section-title mb-0">Registered Tourists</h2>
+    <a class="btn text-white" style="background-color: var(--sts-accent)" asp-action="Create"><i class="bi bi-plus-circle"></i> Register Tourist</a>
+</div>
+
+<div class="table-card">
+    <table class="table table-hover mb-0 align-middle">
+        <thead class="table-light">
+            <tr>
+                <th>Name</th><th>Nationality</th><th>Passport / ID</th><th>Trip Dates</th>
+                <th>Digital ID</th><th>Status</th><th></th>
+            </tr>
+        </thead>
+        <tbody>
+        @if (!Model.Any())
+        {
+            <tr><td colspan="7" class="text-center text-muted py-4">No tourists registered yet.</td></tr>
+        }
+        @foreach (var t in Model)
+        {
+            <tr>
+                <td>@t.FullName</td>
+                <td>@t.Nationality</td>
+                <td>@t.PassportOrIdNumber</td>
+                <td class="small">@t.TripStartDate.ToString("d") &rarr; @t.TripEndDate.ToString("d")</td>
+                <td>
+                    @if (t.DigitalIdentity is not null)
+                    {
+                        <span class="hash-chip" title="@t.DigitalIdentity.CurrentHash">@t.DigitalIdentity.CurrentHash.Substring(0, 12)&hellip;</span>
+                    }
+                    else
+                    {
+                        <span class="text-muted small">Not issued</span>
+                    }
+                </td>
+                <td>
+                    @if (t.IsActive)
+                    {
+                        <span class="badge bg-success">Active</span>
+                    }
+                    else
+                    {
+                        <span class="badge bg-secondary">Inactive</span>
+                    }
+                </td>
+                <td class="text-end">
+                    <a class="btn btn-sm btn-outline-primary" asp-action="Details" asp-route-id="@t.Id"><i class="bi bi-eye"></i></a>
+                    <a class="btn btn-sm btn-outline-secondary" asp-action="Edit" asp-route-id="@t.Id"><i class="bi bi-pencil"></i></a>
+                </td>
+            </tr>
+        }
+        </tbody>
+    </table>
+</div>

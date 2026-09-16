@@ -1,0 +1,52 @@
+@model Incident
+@{
+    ViewData["Title"] = "Incident Details";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2 class="section-title mb-0">Incident #@Model.Id &mdash; @Model.Type</h2>
+    <a class="btn btn-outline-secondary btn-sm" asp-action="Index"><i class="bi bi-arrow-left"></i> Back</a>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-6">
+        <div class="table-card p-3">
+            <table class="table table-borderless table-sm mb-0">
+                <tr><td class="text-muted">Tourist</td><td><a asp-controller="Tourists" asp-action="Details" asp-route-id="@Model.TouristId">@Model.Tourist?.FullName</a></td></tr>
+                <tr><td class="text-muted">Type</td><td>@Model.Type</td></tr>
+                <tr><td class="text-muted">Severity</td><td><span class="badge bg-secondary">@Model.Severity</span></td></tr>
+                <tr><td class="text-muted">Status</td><td>@Model.Status</td></tr>
+                <tr><td class="text-muted">Description</td><td>@Model.Description</td></tr>
+                <tr><td class="text-muted">Location</td><td>@(Model.Latitude is not null ? $"{Model.Latitude:F4}, {Model.Longitude:F4}" : "-")</td></tr>
+                <tr><td class="text-muted">Reported</td><td>@Model.ReportedAt.ToLocalTime().ToString("g")</td></tr>
+                <tr><td class="text-muted">Acknowledged</td><td>@(Model.AcknowledgedAt?.ToLocalTime().ToString("g") ?? "-")</td></tr>
+                <tr><td class="text-muted">Resolved</td><td>@(Model.ResolvedAt?.ToLocalTime().ToString("g") ?? "-")</td></tr>
+                <tr><td class="text-muted">Assigned Responder</td><td>@(Model.AssignedResponder ?? "-")</td></tr>
+                <tr><td class="text-muted">Resolution Notes</td><td>@(Model.ResolutionNotes ?? "-")</td></tr>
+            </table>
+        </div>
+    </div>
+
+    <div class="col-lg-6">
+        <div class="table-card p-3">
+            <h6 class="text-muted text-uppercase small">Update Incident Status</h6>
+            <form asp-action="UpdateStatus" method="post">
+                <input type="hidden" name="IncidentId" value="@Model.Id" />
+                <div class="mb-3">
+                    <label class="form-label">Status</label>
+                    <select name="Status" class="form-select" asp-items="Html.GetEnumSelectList<IncidentStatus>()">
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Assigned Responder</label>
+                    <input name="AssignedResponder" class="form-control" value="@Model.AssignedResponder" placeholder="e.g. Officer Rana, Unit 12" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Resolution Notes</label>
+                    <textarea name="ResolutionNotes" class="form-control" rows="3">@Model.ResolutionNotes</textarea>
+                </div>
+                <button type="submit" class="btn text-white" style="background-color: var(--sts-navy)">Update Status</button>
+            </form>
+        </div>
+    </div>
+</div>

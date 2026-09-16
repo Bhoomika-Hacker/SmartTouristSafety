@@ -1,0 +1,134 @@
+@model Tourist
+@{
+    ViewData["Title"] = "Tourist Details";
+    var verification = ViewBag.DigitalIdVerification as DigitalIdVerificationResultDto;
+    var portalUsername = ViewBag.PortalLoginUsername as string;
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2 class="section-title mb-0">@Model.FullName</h2>
+    <div>
+        <a class="btn btn-outline-secondary btn-sm" asp-action="Edit" asp-route-id="@Model.Id"><i class="bi bi-pencil"></i> Edit</a>
+        <a class="btn btn-outline-secondary btn-sm" asp-action="Index"><i class="bi bi-arrow-left"></i> Back</a>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-4">
+        <div class="table-card p-3 mb-4">
+            <h6 class="text-muted text-uppercase small">Profile</h6>
+            <table class="table table-borderless table-sm mb-0">
+                <tr><td class="text-muted">Nationality</td><td>@Model.Nationality</td></tr>
+                <tr><td class="text-muted">Passport / ID</td><td>@Model.PassportOrIdNumber</td></tr>
+                <tr><td class="text-muted">Phone</td><td>@Model.Phone</td></tr>
+                <tr><td class="text-muted">Email</td><td>@(Model.Email ?? "-")</td></tr>
+                <tr><td class="text-muted">Emergency Contact</td><td>@Model.EmergencyContactName (@Model.EmergencyContactPhone)</td></tr>
+                <tr><td class="text-muted">Trip</td><td>@Model.TripStartDate.ToString("d") &rarr; @Model.TripEndDate.ToString("d")</td></tr>
+                <tr><td class="text-muted">Last Check-in</td><td>@(Model.LastCheckInAt?.ToLocalTime().ToString("g") ?? "Never")</td></tr>
+                <tr><td class="text-muted">Status</td><td>@(Model.IsActive ? "Active" : "Inactive")</td></tr>
+            </table>
+        </div>
+
+        <div class="table-card p-3 mb-4">
+            <h6 class="text-muted text-uppercase small"><i class="bi bi-person-badge"></i> Tourist Safety Portal Access</h6>
+            @if (!string.IsNullOrEmpty(portalUsername))
+            {
+                <p class="small mb-0">Portal login exists — username: <code>@portalUsername</code></p>
+                <p class="small text-muted">The tourist can sign in on the Login page to see their live zone status, nearest police station, SOS button, and chatbot.</p>
+            }
+            else
+            {
+                <p class="small text-muted">Give this tourist access to their own safety dashboard (live zone status, SOS button, nearest police station, chatbot).</p>
+                <form asp-action="CreateLogin" asp-route-id="@Model.Id" method="post">
+                    <button type="submit" class="btn btn-sm text-white" style="background-color: var(--sts-navy)">
+                        <i class="bi bi-key"></i> Create Portal Login
+                    </button>
+                </form>
+            }
+        </div>
+
+        <div class="table-card p-3">
+            <h6 class="text-muted text-uppercase small"><i class="bi bi-link-45deg"></i> Blockchain Digital ID</h6>
+            @if (Model.DigitalIdentity is null)
+            {
+                <p class="text-muted small mb-0">No Digital ID has been issued for this tourist.</p>
+            }
+            else
+            {
+                <p class="mb-1 small">Block #@Model.DigitalIdentity.BlockIndex</p>
+                <p class="mb-1 small">Current Hash:<br /><span class="hash-chip">@Model.DigitalIdentity.CurrentHash</span></p>
+                <p class="mb-1 small">Previous Hash:<br /><span class="hash-chip">@Model.DigitalIdentity.PreviousHash</span></p>
+                <p class="mb-1 small">Issued: @Model.DigitalIdentity.IssuedAt.ToLocalTime().ToString("g")</p>
+                <p class="mb-2 small">Expires: @Model.DigitalIdentity.ExpiresAt.ToLocalTime().ToString("g")</p>
+
+                @if (verification is not null)
+                {
+                    <span class="badge @(verification.IsValid ? "bg-success" : "bg-danger")">
+                        @(verification.IsValid ? "Valid & Chain Intact" : "Invalid / Tampered / Expired")
+                    </span>
+                }
+
+                @if (Model.DigitalIdentity.IsActive && !Model.DigitalIdentity.IsRevoked)
+                {
+                    <form asp-action="RevokeDigitalId" asp-route-id="@Model.Id" method="post" class="mt-3">
+                        <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Revoke this Digital ID?');">
+                            <i class="bi bi-slash-circle"></i> Revoke Digital ID
+                        </button>
+                    </form>
+                }
+            }
+        </div>
+    </div>
+
+    <div class="col-lg-8">
+        <h6 class="text-muted text-uppercase small">Recent Location Pings</h6>
+        <div class="table-card mb-4">
+            <table class="table table-hover mb-0 align-middle">
+                <thead class="table-light">
+                    <tr><th>Time</th><th>Coordinates</th><th>Zone</th><th>Breach</th><th>AI Risk</th></tr>
+                </thead>
+                <tbody>
+                @if (!Model.LocationLogs.Any())
+                {
+                    <tr><td colspan="5" class="text-center text-muted py-3">No location pings recorded.</td></tr>
+                }
+                @foreach (var log in Model.LocationLogs.OrderByDescending(l => l.Timestamp))
+                {
+                    <tr>
+                        <td class="small">@log.Timestamp.ToLocalTime().ToString("g")</td>
+                        <td class="small">@log.Latitude.ToString("F4"), @log.Longitude.ToString("F4")</td>
+                        <td class="small">@(log.Zone?.Name ?? "Unmonitored area")</td>
+                        <td>@(log.IsGeoFenceBreach ? "⚠️" : "-")</td>
+                        <td><span class="badge bg-dark">@log.AiRiskScore</span> @log.AiRiskCategory</td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+
+        <h6 class="text-muted text-uppercase small">Incidents</h6>
+        <div class="table-card">
+            <table class="table table-hover mb-0 align-middle">
+                <thead class="table-light">
+                    <tr><th>Type</th><th>Severity</th><th>Status</th><th>Reported</th><th></th></tr>
+                </thead>
+                <tbody>
+                @if (!Model.Incidents.Any())
+                {
+                    <tr><td colspan="5" class="text-center text-muted py-3">No incidents recorded.</td></tr>
+                }
+                @foreach (var i in Model.Incidents.OrderByDescending(x => x.ReportedAt))
+                {
+                    <tr>
+                        <td>@i.Type</td>
+                        <td><span class="badge bg-secondary">@i.Severity</span></td>
+                        <td>@i.Status</td>
+                        <td class="small">@i.ReportedAt.ToLocalTime().ToString("g")</td>
+                        <td><a asp-controller="Incidents" asp-action="Details" asp-route-id="@i.Id" class="btn btn-sm btn-outline-primary">View</a></td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>

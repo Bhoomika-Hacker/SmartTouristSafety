@@ -1,0 +1,239 @@
+@model DashboardViewModel
+@{
+    ViewData["Title"] = "Dashboard";
+
+    string RiskColor(string level) => level switch
+    {
+        "Safe" => "#1a9c5c",
+        "Caution" => "#e0a800",
+        "HighRisk" => "#e0601c",
+        "Restricted" => "#c0392b",
+        _ => "#6c757d"
+    };
+}
+
+<h2 class="section-title"><span class="live-dot"></span> Command Center Overview</h2>
+
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+        <div class="card-stat">
+            <div class="value"><span class="counter" data-target="@Model.ActiveTourists">0</span> / <span class="counter" data-target="@Model.TotalTourists">0</span></div>
+            <div class="label">Active Tourists</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card-stat">
+            <div class="value"><span class="counter" data-target="@Model.RestrictedOrHighRiskZones">0</span> / <span class="counter" data-target="@Model.TotalZones">0</span></div>
+            <div class="label">High-Risk / Restricted Zones</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card-stat">
+            <div class="value text-warning"><span class="counter" data-target="@Model.OpenIncidents">0</span></div>
+            <div class="label">Open Incidents</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card-stat">
+            <div class="value text-danger"><span class="counter" data-target="@Model.CriticalIncidents">0</span></div>
+            <div class="label">Critical &amp; Unresolved</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card-stat">
+            <div class="value"><span class="counter" data-target="@Model.TotalExternalReports">0</span></div>
+            <div class="label">
+                Auto-Ingested Real Reports
+                @if (Model.LastExternalReportIngestedAt.HasValue)
+                {
+                    <div class="small text-muted">Last sync: @Model.LastExternalReportIngestedAt.Value.ToLocalTime().ToString("g")</div>
+                }
+                else
+                {
+                    <div class="small text-muted">Sync pending&hellip;</div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+<p class="text-muted small mb-4">
+    <i class="bi bi-info-circle"></i> Risk for any area — marked or not — is computed automatically from real reports
+    (tourist/officer incidents plus the feeds above), not only from zones drawn by hand.
+</p>
+
+<div class="row g-4 mb-1">
+    <div class="col-12">
+        <div class="table-card p-3">
+            <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
+                <h5 class="mb-0"><i class="bi bi-map"></i> Live Operations Map</h5>
+                <div class="map-legend">
+                    <span><i class="dot" style="background:#1a9c5c;"></i> Safe</span>
+                    <span><i class="dot" style="background:#e0a800;"></i> Caution</span>
+                    <span><i class="dot" style="background:#e0601c;"></i> High-Risk</span>
+                    <span><i class="dot" style="background:#c0392b;"></i> Restricted</span>
+                    <span><i class="dot" style="background:var(--sts-navy);"></i> Police Station</span>
+                </div>
+            </div>
+            <p class="text-muted small mb-2">Every geo-fence zone and every registered police station, plotted live from the same data the tourist app uses to find the nearest one to go to.</p>
+            <div id="opsMap" class="sts-map" style="height: 420px;"></div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-6">
+        <h5 class="section-title">Recent Incidents</h5>
+        <div class="table-card">
+            <table class="table table-hover mb-0 align-middle">
+                <thead class="table-light">
+                    <tr><th>Tourist</th><th>Type</th><th>Severity</th><th>Status</th><th>Reported</th></tr>
+                </thead>
+                <tbody>
+                @if (!Model.RecentIncidents.Any())
+                {
+                    <tr><td colspan="5" class="text-center text-muted py-3">No incidents recorded.</td></tr>
+                }
+                @foreach (var i in Model.RecentIncidents)
+                {
+                    <tr>
+                        <td><a asp-controller="Tourists" asp-action="Details" asp-route-id="@i.TouristId">@i.Tourist?.FullName</a></td>
+                        <td>@i.Type</td>
+                        <td><span class="badge bg-secondary">@i.Severity</span></td>
+                        <td>@i.Status</td>
+                        <td>@i.ReportedAt.ToLocalTime().ToString("g")</td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="col-lg-6">
+        <h5 class="section-title">Recent Alerts</h5>
+        <div class="table-card">
+            <table class="table table-hover mb-0 align-middle">
+                <thead class="table-light">
+                    <tr><th>Tourist</th><th>Alert Type</th><th>Message</th><th>Time</th></tr>
+                </thead>
+                <tbody>
+                @if (!Model.RecentAlerts.Any())
+                {
+                    <tr><td colspan="4" class="text-center text-muted py-3">No alerts recorded.</td></tr>
+                }
+                @foreach (var a in Model.RecentAlerts)
+                {
+                    <tr>
+                        <td>@a.Tourist?.FullName</td>
+                        <td>@a.AlertType</td>
+                        <td class="small">@a.Message</td>
+                        <td>@a.Timestamp.ToLocalTime().ToString("g")</td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 mt-1">
+    <div class="col-12">
+        <h5 class="section-title">Recent Geo-Fence Breaches</h5>
+        <div class="table-card">
+            <table class="table table-hover mb-0 align-middle">
+                <thead class="table-light">
+                    <tr><th>Tourist</th><th>Zone</th><th>Coordinates</th><th>AI Risk Score</th><th>Time</th></tr>
+                </thead>
+                <tbody>
+                @if (!Model.RecentBreaches.Any())
+                {
+                    <tr><td colspan="5" class="text-center text-muted py-3">No breaches recorded.</td></tr>
+                }
+                @foreach (var b in Model.RecentBreaches)
+                {
+                    <tr>
+                        <td>@b.Tourist?.FullName</td>
+                        <td>@b.Zone?.Name</td>
+                        <td class="small">@b.Latitude.ToString("F4"), @b.Longitude.ToString("F4")</td>
+                        <td><span class="badge bg-danger">@b.AiRiskScore</span> @b.AiRiskCategory</td>
+                        <td>@b.Timestamp.ToLocalTime().ToString("g")</td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+    // ---- Animated counters ----
+    document.querySelectorAll('.counter').forEach(function (el) {
+        const target = parseInt(el.getAttribute('data-target'), 10) || 0;
+        const duration = 900;
+        const start = performance.now();
+        function step(now) {
+            const progress = Math.min(1, (now - start) / duration);
+            const eased = 1 - Math.pow(1 - progress, 3);
+            el.textContent = Math.round(eased * target);
+            if (progress < 1) requestAnimationFrame(step);
+        }
+        requestAnimationFrame(step);
+    });
+
+    // ---- Live operations map: every zone (as a risk-colored circle) + every police station ----
+    const riskColors = { Safe: '#1a9c5c', Caution: '#e0a800', HighRisk: '#e0601c', Restricted: '#c0392b' };
+
+    const opsMap = L.map('opsMap');
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(opsMap);
+
+    const policeIcon = L.divIcon({
+        className: '', html: '<div class="police-marker-icon"><i class="bi bi-shield-fill"></i></div>',
+        iconSize: [28, 28], iconAnchor: [14, 28]
+    });
+
+    async function loadOpsMap() {
+        const bounds = [];
+        try {
+            const [zonesRes, stationsRes] = await Promise.all([
+                fetch('/api/zones'),
+                fetch('/api/police-stations')
+            ]);
+            const zones = zonesRes.ok ? await zonesRes.json() : [];
+            const stations = stationsRes.ok ? await stationsRes.json() : [];
+
+            zones.forEach(z => {
+                const color = riskColors[z.riskLevel] || '#6c757d';
+                L.circle([z.latitude, z.longitude], {
+                    radius: z.radiusMeters,
+                    color: color,
+                    weight: 2,
+                    fillColor: color,
+                    fillOpacity: 0.18
+                }).addTo(opsMap).bindPopup(`<strong>${z.name}</strong><br/>${z.riskLevel}${z.description ? '<br/><span class="text-muted">' + z.description + '</span>' : ''}`);
+                bounds.push([z.latitude, z.longitude]);
+            });
+
+            stations.forEach(s => {
+                L.marker([s.latitude, s.longitude], { icon: policeIcon }).addTo(opsMap)
+                    .bindPopup(`<strong>${s.name}</strong>${s.address ? '<br/>' + s.address : ''}${s.phone ? '<br/><i class="bi bi-telephone"></i> ' + s.phone : ''}`);
+                bounds.push([s.latitude, s.longitude]);
+            });
+
+            if (bounds.length > 0) {
+                opsMap.fitBounds(L.latLngBounds(bounds), { padding: [30, 30] });
+            } else {
+                opsMap.setView([20.5937, 78.9629], 5); // fallback world-ish view
+            }
+        } catch (e) {
+            opsMap.setView([20.5937, 78.9629], 5);
+        }
+        setTimeout(() => opsMap.invalidateSize(), 150);
+    }
+
+    loadOpsMap();
+</script>
+}

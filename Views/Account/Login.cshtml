@@ -1,0 +1,37 @@
+@model LoginViewModel
+@{
+    ViewData["Title"] = "Login";
+    Layout = "_Layout";
+}
+
+<div class="login-wrapper">
+    <div class="card shadow-sm" style="max-width: 420px; width: 100%;">
+        <div class="card-body p-4">
+            <div class="text-center mb-2">
+                <i class="bi bi-shield-check" style="font-size: 2.2rem; color: var(--sts-navy);"></i>
+            </div>
+            <h4 class="section-title justify-content-center" style="border-left:none;">Authority Login</h4>
+            <p class="text-muted small text-center">Sign in to access the tourist safety dashboard.</p>
+
+            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+            <form asp-controller="Account" asp-action="Login" method="post">
+                <div class="mb-3">
+                    <label class="form-label">Username</label>
+                    <input asp-for="Username" class="form-control" placeholder="admin" autofocus />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Password</label>
+                    <input asp-for="Password" type="password" class="form-control" placeholder="••••••••" />
+                </div>
+                <button type="submit" class="btn w-100 text-white" style="background-color: var(--sts-navy)">Sign In</button>
+            </form>
+
+            <hr />
+            <p class="small text-muted mb-0">
+                Demo accounts &mdash; Admin: <code>admin / Admin@123</code><br />
+                Authority: <code>officer / Officer@123</code>
+            </p>
+        </div>
+    </div>
+</div>

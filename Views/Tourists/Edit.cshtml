@@ -1,0 +1,62 @@
+@model Tourist
+@{
+    ViewData["Title"] = "Edit Tourist";
+}
+
+<h2 class="section-title">Edit Tourist</h2>
+
+<div class="table-card p-4" style="max-width: 720px;">
+    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+    <form asp-action="Edit" asp-route-id="@Model.Id" method="post">
+        <input type="hidden" asp-for="Id" />
+        <div class="row g-3">
+            <div class="col-md-6">
+                <label class="form-label">Full Name</label>
+                <input asp-for="FullName" class="form-control" required />
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Nationality</label>
+                <input asp-for="Nationality" class="form-control" required />
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Passport / National ID Number</label>
+                <input asp-for="PassportOrIdNumber" class="form-control" required />
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Phone</label>
+                <input asp-for="Phone" class="form-control" required />
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Email</label>
+                <input asp-for="Email" class="form-control" />
+            </div>
+            <div class="col-md-6 d-flex align-items-end">
+                <div class="form-check">
+                    <input asp-for="IsActive" class="form-check-input" />
+                    <label class="form-check-label" asp-for="IsActive">Active</label>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Emergency Contact Name</label>
+                <input asp-for="EmergencyContactName" class="form-control" required />
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Emergency Contact Phone</label>
+                <input asp-for="EmergencyContactPhone" class="form-control" required />
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Trip Start Date</label>
+                <input asp-for="TripStartDate" type="date" class="form-control" />
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Trip End Date</label>
+                <input asp-for="TripEndDate" type="date" class="form-control" />
+            </div>
+        </div>
+
+        <div class="mt-4">
+            <button type="submit" class="btn text-white" style="background-color: var(--sts-navy)">Save Changes</button>
+            <a asp-action="Details" asp-route-id="@Model.Id" class="btn btn-outline-secondary">Cancel</a>
+        </div>
+    </form>
+</div>

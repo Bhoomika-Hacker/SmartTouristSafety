@@ -1,0 +1,418 @@
+@model TouristPortalViewModel
+@{
+    ViewData["Title"] = "My Safety Dashboard";
+
+    string BadgeClass(RiskLevel r) => r switch
+    {
+        RiskLevel.Safe => "badge-risk-safe",
+        RiskLevel.Caution => "badge-risk-caution",
+        RiskLevel.HighRisk => "badge-risk-highrisk",
+        RiskLevel.Restricted => "badge-risk-restricted",
+        _ => "bg-secondary"
+    };
+}
+
+<h2 class="section-title"><span class="live-dot"></span> Welcome, @Model.Tourist.FullName</h2>
+
+<div class="row g-4">
+    <div class="col-lg-7">
+        <div class="table-card p-4 mb-4">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <h5 class="mb-0"><i class="bi bi-geo-alt"></i> Where Am I Right Now?</h5>
+                <div class="d-flex align-items-center gap-2">
+                    <span class="small text-muted" id="lastUpdatedText"></span>
+                    <button id="btnRefreshLocation" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-clockwise"></i> Refresh</button>
+                </div>
+            </div>
+            <p class="text-muted small">This uses your browser's location to automatically check whether your current area is Safe, Caution, High-Risk, or Restricted, and finds the nearest police station.</p>
+
+            <div id="locationStatus" class="alert alert-secondary">
+                <i class="bi bi-hourglass-split"></i> Waiting for location permission&hellip;
+            </div>
+
+            <div id="zoneResult" class="d-none">
+                <div class="d-flex align-items-center gap-3 mb-2">
+                    <div class="risk-gauge" id="riskGauge">
+                        <div class="inner">
+                            <span class="num" id="riskScore">-</span>
+                            <span class="cap">Risk</span>
+                        </div>
+                    </div>
+                    <div>
+                        <p class="mb-1">Current area status:
+                            <span id="zoneBadge" class="badge">-</span>
+                            <span id="zoneName" class="text-muted"></span>
+                        </p>
+                        <p class="mb-1 small text-muted" id="zoneSourceNote"></p>
+                        <p class="mb-0"><span id="riskCategory" class="fw-semibold"></span></p>
+                    </div>
+                </div>
+                <hr />
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <p class="mb-0"><i class="bi bi-shield"></i> Nearest Police Station</p>
+                    <a id="btnDirections" href="#" target="_blank" rel="noopener" class="btn btn-sm text-white d-none" style="background-color: var(--sts-navy)">
+                        <i class="bi bi-signpost-2"></i> Get Directions
+                    </a>
+                </div>
+                <p class="mb-2 text-muted" id="policeInfo">-</p>
+                <div id="stationMap" class="sts-map d-none"></div>
+                <div class="map-legend mt-2" id="mapLegend" style="display:none;">
+                    <span><i class="dot" style="background:#1e73ff;"></i> You</span>
+                    <span><i class="dot" style="background:var(--sts-navy);"></i> Nearest Police Station</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="table-card p-4 mb-4 text-center">
+            <h5><i class="bi bi-exclamation-octagon text-danger"></i> Emergency SOS</h5>
+            <p class="text-muted small">Press only in a genuine emergency. This immediately notifies the tourist police with your live location.</p>
+            <ol class="text-muted small text-start d-inline-block mb-3">
+                <li>Confirms you meant to press it</li>
+                <li>Grabs your live GPS location</li>
+                <li>Creates a <strong>Critical</strong> incident and alert for the tourist police, instantly</li>
+            </ol><br />
+            <button id="btnSos" class="btn btn-lg btn-danger px-5">
+                <i class="bi bi-broadcast"></i> SOS
+            </button>
+            <div id="sosStatus" class="mt-3"></div>
+        </div>
+
+        <div class="table-card p-4">
+            <h5 class="mb-3"><i class="bi bi-geo"></i> All Monitored Zones</h5>
+            <table class="table table-sm mb-0">
+                <thead><tr><th>Zone</th><th>Risk Level</th></tr></thead>
+                <tbody>
+                @foreach (var z in Model.Zones)
+                {
+                    <tr>
+                        <td>@z.Name<div class="small text-muted">@z.Description</div></td>
+                        <td><span class="badge @BadgeClass(z.RiskLevel)">@z.RiskLevel</span></td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="col-lg-5">
+        <div class="table-card p-3 mb-4">
+            <h6 class="text-muted text-uppercase small"><i class="bi bi-link-45deg"></i> My Digital ID</h6>
+            @if (Model.DigitalIdStatus is not null)
+            {
+                <span class="badge @(Model.DigitalIdStatus.IsValid ? "bg-success" : "bg-danger")">
+                    @(Model.DigitalIdStatus.IsValid ? "Valid & Chain Intact" : "Invalid / Expired / Revoked")
+                </span>
+                <p class="small text-muted mt-2 mb-0">Expires: @Model.DigitalIdStatus.ExpiresAt.ToLocalTime().ToString("g")</p>
+            }
+            else
+            {
+                <p class="small text-muted mb-0">No Digital ID on record — contact tourist support.</p>
+            }
+        </div>
+
+        <div class="table-card p-3 mb-4">
+            <h6 class="text-muted text-uppercase small">My Reported Incidents</h6>
+            @if (!Model.MyIncidents.Any())
+            {
+                <p class="small text-muted mb-0">No incidents on your record.</p>
+            }
+            else
+            {
+                <ul class="list-unstyled small mb-0">
+                    @foreach (var i in Model.MyIncidents)
+                    {
+                        <li class="mb-2">
+                            <strong>@i.Type</strong> &mdash; @i.Status
+                            <div class="text-muted">@i.ReportedAt.ToLocalTime().ToString("g")</div>
+                        </li>
+                    }
+                </ul>
+            }
+        </div>
+
+        <div class="table-card p-3">
+            <h6 class="text-muted text-uppercase small"><i class="bi bi-chat-dots"></i> Safety Assistant</h6>
+            <div id="chatLog" class="mb-2" style="max-height: 320px; overflow-y: auto;">
+                <div class="small text-muted mb-2">Ask me about your area's safety, the nearest police station, SOS, or your Digital ID.</div>
+            </div>
+            <div id="quickReplies" class="mb-2"></div>
+            <form id="chatForm" class="d-flex gap-2">
+                <input type="text" id="chatInput" class="form-control form-control-sm" placeholder="Type a message..." autocomplete="off" />
+                <button type="submit" class="btn btn-sm text-white" style="background-color: var(--sts-navy)">Send</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    const touristId = @Model.Tourist.Id;
+
+    function badgeClassFor(riskLevel) {
+        switch (riskLevel) {
+            case 'Safe': return 'badge-risk-safe';
+            case 'Caution': return 'badge-risk-caution';
+            case 'HighRisk': return 'badge-risk-highrisk';
+            case 'Restricted': return 'badge-risk-restricted';
+            default: return 'bg-secondary';
+        }
+    }
+
+    function gaugeColorFor(riskLevel) {
+        switch (riskLevel) {
+            case 'Safe': return 'var(--sts-safe)';
+            case 'Caution': return 'var(--sts-caution)';
+            case 'HighRisk': return 'var(--sts-highrisk)';
+            case 'Restricted': return 'var(--sts-restricted)';
+            default: return 'var(--sts-navy)';
+        }
+    }
+
+    // ---- Live "last updated" ticker ----
+    let lastUpdatedAt = null;
+    function refreshLastUpdatedText() {
+        const el = document.getElementById('lastUpdatedText');
+        if (!el || !lastUpdatedAt) return;
+        const secs = Math.max(0, Math.round((Date.now() - lastUpdatedAt) / 1000));
+        el.textContent = secs < 5 ? 'Updated just now' : `Updated ${secs}s ago`;
+    }
+    setInterval(refreshLastUpdatedText, 1000);
+
+    // ---- Interactive Leaflet map: you + nearest police station, with a route line ----
+    let stsMap = null, userMarker = null, policeMarker = null, routeLine = null;
+    function ensureMap() {
+        if (stsMap) return stsMap;
+        stsMap = L.map('stationMap', { zoomControl: true, attributionControl: true });
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(stsMap);
+        return stsMap;
+    }
+
+    function updateMap(userLat, userLng, policeLat, policeLng, policeName) {
+        document.getElementById('stationMap').classList.remove('d-none');
+        document.getElementById('mapLegend').style.display = 'flex';
+        const map = ensureMap();
+
+        const userIcon = L.divIcon({
+            className: '', html: '<div class="user-pulse-icon"><span class="ring"></span><span class="dot"></span></div>',
+            iconSize: [18, 18], iconAnchor: [9, 9]
+        });
+
+        if (!userMarker) {
+            userMarker = L.marker([userLat, userLng], { icon: userIcon }).addTo(map).bindPopup('You are here');
+        } else {
+            userMarker.setLatLng([userLat, userLng]);
+        }
+
+        if (policeLat != null && policeLng != null) {
+            const policeIcon = L.divIcon({
+                className: '', html: '<div class="police-marker-icon"><i class="bi bi-shield-fill"></i></div>',
+                iconSize: [30, 30], iconAnchor: [15, 30]
+            });
+            if (!policeMarker) {
+                policeMarker = L.marker([policeLat, policeLng], { icon: policeIcon }).addTo(map);
+            } else {
+                policeMarker.setLatLng([policeLat, policeLng]);
+            }
+            policeMarker.bindPopup(`<strong>${policeName || 'Police Station'}</strong>`);
+
+            if (routeLine) map.removeLayer(routeLine);
+            routeLine = L.polyline([[userLat, userLng], [policeLat, policeLng]], {
+                color: '#ff7a45', weight: 3, dashArray: '6, 8', opacity: 0.85
+            }).addTo(map);
+
+            map.fitBounds(L.latLngBounds([[userLat, userLng], [policeLat, policeLng]]), { padding: [30, 30] });
+
+            const directionsBtn = document.getElementById('btnDirections');
+            directionsBtn.href = `https://www.google.com/maps/dir/?api=1&origin=${userLat},${userLng}&destination=${policeLat},${policeLng}&travelmode=walking`;
+            directionsBtn.classList.remove('d-none');
+        } else {
+            map.setView([userLat, userLng], 14);
+            document.getElementById('btnDirections').classList.add('d-none');
+        }
+
+        // Leaflet needs a nudge to size correctly inside a card that just became visible
+        setTimeout(() => map.invalidateSize(), 150);
+    }
+
+    async function sendPing(lat, lng) {
+        const statusEl = document.getElementById('locationStatus');
+        try {
+            const res = await fetch('/api/location/ping', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ touristId, latitude: lat, longitude: lng })
+            });
+            if (!res.ok) throw new Error('Ping failed');
+            const data = await res.json();
+
+            statusEl.classList.add('d-none');
+            const resultEl = document.getElementById('zoneResult');
+            resultEl.classList.remove('d-none');
+
+            const badge = document.getElementById('zoneBadge');
+            const sourceNote = document.getElementById('zoneSourceNote');
+            if (data.isInsideKnownZone) {
+                // Inside an administrator-declared zone — but the live, report-based
+                // reading below still applies too, in case it's actually higher.
+                badge.textContent = data.zoneRiskLevel;
+                badge.className = 'badge ' + badgeClassFor(data.zoneRiskLevel);
+                document.getElementById('zoneName').textContent = data.locationName
+                    ? `${data.zoneName} — near ${data.locationName}`
+                    : data.zoneName;
+                sourceNote.textContent = `Declared zone. Live report-based reading: ${data.dynamicRiskLevel} ` +
+                    `(from ${data.contributingReportCount} recent real report(s) nearby).`;
+            } else {
+                // Nobody has drawn a zone here — show where the tourist actually is (real
+                // place name, via live reverse geocoding) plus the risk computed
+                // automatically from real nearby reports (incidents + external feeds).
+                badge.textContent = data.dynamicRiskLevel;
+                badge.className = 'badge ' + badgeClassFor(data.dynamicRiskLevel);
+                document.getElementById('zoneName').textContent = data.locationName
+                    ? `You're near ${data.locationName}. No zone was drawn here — status computed live from real reports.`
+                    : 'No zone was drawn here — status computed live from real reports.';
+                sourceNote.textContent = data.contributingReportCount > 0
+                    ? `Based on ${data.contributingReportCount} recent real report(s) within range` +
+                      (data.nearestReportDistanceMeters != null ? ` (nearest ~${Math.round(data.nearestReportDistanceMeters)}m away).` : '.')
+                    : 'No recent reports found nearby — treated as Safe by default.';
+            }
+
+            document.getElementById('riskScore').textContent = data.aiRiskScore;
+            document.getElementById('riskCategory').textContent = data.aiRiskCategory;
+
+            const gaugeLevel = data.isInsideKnownZone ? data.zoneRiskLevel : data.dynamicRiskLevel;
+            const gauge = document.getElementById('riskGauge');
+            gauge.style.setProperty('--pct', Math.max(0, Math.min(100, data.aiRiskScore)));
+            gauge.style.setProperty('--gauge-color', gaugeColorFor(gaugeLevel));
+
+            lastUpdatedAt = Date.now();
+            refreshLastUpdatedText();
+
+            const policeEl = document.getElementById('policeInfo');
+            if (data.nearestPoliceStationName) {
+                const km = (data.nearestPoliceStationDistanceMeters / 1000).toFixed(1);
+                policeEl.innerHTML = `<strong>${data.nearestPoliceStationName}</strong> &mdash; about ${km} km away` +
+                    (data.nearestPoliceStationAddress ? `<br/><span class="text-muted">${data.nearestPoliceStationAddress}</span>` : '') +
+                    (data.nearestPoliceStationPhone ? `<br/><i class="bi bi-telephone"></i> <a href="tel:${data.nearestPoliceStationPhone}">${data.nearestPoliceStationPhone}</a>` : '');
+                updateMap(lat, lng, data.nearestPoliceStationLatitude, data.nearestPoliceStationLongitude, data.nearestPoliceStationName);
+            } else {
+                policeEl.textContent = 'No police stations registered yet.';
+                updateMap(lat, lng, null, null, null);
+            }
+
+            if (data.isGeoFenceBreach) {
+                statusEl.classList.remove('d-none');
+                statusEl.className = 'alert alert-danger';
+                statusEl.innerHTML = '<i class="bi bi-exclamation-triangle"></i> You have entered a restricted area! Authorities have been alerted.';
+            } else if (data.dynamicRiskLevel === 'Restricted') {
+                statusEl.classList.remove('d-none');
+                statusEl.className = 'alert alert-warning';
+                statusEl.innerHTML = '<i class="bi bi-exclamation-triangle"></i> This area is showing as high risk based on real recent reports nearby ' +
+                    '— no one manually marked it, but caution is advised.';
+            }
+        } catch (e) {
+            statusEl.className = 'alert alert-warning';
+            statusEl.innerHTML = '<i class="bi bi-wifi-off"></i> Could not reach the safety server. Please check your connection.';
+        }
+    }
+
+    function requestLocation() {
+        const statusEl = document.getElementById('locationStatus');
+        if (!navigator.geolocation) {
+            statusEl.className = 'alert alert-warning';
+            statusEl.textContent = 'Your browser does not support location sharing.';
+            return;
+        }
+        statusEl.classList.remove('d-none');
+        statusEl.className = 'alert alert-secondary';
+        statusEl.innerHTML = '<i class="bi bi-hourglass-split"></i> Getting your location...';
+
+        navigator.geolocation.getCurrentPosition(
+            (pos) => sendPing(pos.coords.latitude, pos.coords.longitude),
+            () => {
+                statusEl.className = 'alert alert-warning';
+                statusEl.innerHTML = '<i class="bi bi-geo-alt-fill"></i> Location permission denied. Allow location access to see your area status automatically.';
+            },
+            { enableHighAccuracy: true, timeout: 10000 }
+        );
+    }
+
+    document.getElementById('btnRefreshLocation').addEventListener('click', requestLocation);
+    requestLocation();
+
+    // SOS button
+    document.getElementById('btnSos').addEventListener('click', () => {
+        if (!confirm('This will immediately alert the tourist police with your live location. Continue?')) return;
+        const sosStatus = document.getElementById('sosStatus');
+        sosStatus.innerHTML = '<span class="text-muted">Getting your location...</span>';
+
+        navigator.geolocation.getCurrentPosition(async (pos) => {
+            try {
+                const res = await fetch('/api/incidents/panic', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        touristId,
+                        latitude: pos.coords.latitude,
+                        longitude: pos.coords.longitude
+                    })
+                });
+                if (!res.ok) throw new Error('SOS failed');
+                const incident = await res.json();
+                sosStatus.innerHTML = `<span class="text-success"><i class="bi bi-check-circle"></i> SOS sent — incident #${incident.id} created, help is on the way.</span>`;
+            } catch {
+                sosStatus.innerHTML = '<span class="text-danger">Could not send SOS. Try calling the nearest police station directly.</span>';
+            }
+        }, () => {
+            sosStatus.innerHTML = '<span class="text-danger">Location permission is required to send an SOS.</span>';
+        }, { enableHighAccuracy: true, timeout: 10000 });
+    });
+
+    // Chatbot
+    function appendChat(sender, text) {
+        const log = document.getElementById('chatLog');
+        const div = document.createElement('div');
+        div.className = 'small mb-2';
+        div.innerHTML = sender === 'me'
+            ? `<div class="text-end"><span class="badge bg-primary">${text}</span></div>`
+            : `<div><span class="badge bg-light text-dark border">${text}</span></div>`;
+        log.appendChild(div);
+        log.scrollTop = log.scrollHeight;
+    }
+
+    async function askBot(message) {
+        appendChat('me', message);
+        document.getElementById('quickReplies').innerHTML = '';
+        try {
+            const res = await fetch('/api/chatbot/ask', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ touristId, message })
+            });
+            const data = await res.json();
+            appendChat('bot', data.reply);
+            const qr = document.getElementById('quickReplies');
+            (data.quickReplies || []).forEach(q => {
+                const btn = document.createElement('button');
+                btn.className = 'btn btn-sm btn-outline-secondary me-1 mb-1';
+                btn.textContent = q;
+                btn.onclick = () => askBot(q);
+                qr.appendChild(btn);
+            });
+        } catch {
+            appendChat('bot', 'Sorry, I could not reach the assistant right now.');
+        }
+    }
+
+    document.getElementById('chatForm').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const input = document.getElementById('chatInput');
+        const text = input.value.trim();
+        if (!text) return;
+        input.value = '';
+        askBot(text);
+    });
+</script>
+}

@@ -1,0 +1,51 @@
+@model List<GeoFenceZone>
+@{
+    ViewData["Title"] = "Geo-Fence Zones";
+
+    string BadgeClass(RiskLevel r) => r switch
+    {
+        RiskLevel.Safe => "badge-risk-safe",
+        RiskLevel.Caution => "badge-risk-caution",
+        RiskLevel.HighRisk => "badge-risk-highrisk",
+        RiskLevel.Restricted => "badge-risk-restricted",
+        _ => "bg-secondary"
+    };
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2 class="section-title mb-0">Geo-Fence Zones</h2>
+    <a class="btn text-white" style="background-color: var(--sts-accent)" asp-action="Create"><i class="bi bi-plus-circle"></i> New Zone</a>
+</div>
+
+<div class="table-card">
+    <table class="table table-hover mb-0 align-middle">
+        <thead class="table-light">
+            <tr><th>Name</th><th>Center Coordinates</th><th>Radius (m)</th><th>Risk Level</th><th>Status</th><th></th></tr>
+        </thead>
+        <tbody>
+        @if (!Model.Any())
+        {
+            <tr><td colspan="6" class="text-center text-muted py-4">No zones defined yet.</td></tr>
+        }
+        @foreach (var z in Model)
+        {
+            <tr>
+                <td>
+                    <a asp-action="Details" asp-route-id="@z.Id">@z.Name</a>
+                    <div class="small text-muted">@z.Description</div>
+                </td>
+                <td class="small">@z.Latitude.ToString("F4"), @z.Longitude.ToString("F4")</td>
+                <td>@z.RadiusMeters.ToString("N0")</td>
+                <td><span class="badge @BadgeClass(z.RiskLevel)">@z.RiskLevel</span></td>
+                <td>@(z.IsActive ? "Active" : "Inactive")</td>
+                <td class="text-end">
+                    <a class="btn btn-sm btn-outline-secondary" asp-action="Edit" asp-route-id="@z.Id"><i class="bi bi-pencil"></i></a>
+                    <form asp-action="Delete" asp-route-id="@z.Id" method="post" class="d-inline">
+                        <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Delete this zone?');"><i class="bi bi-trash"></i></button>
+                    </form>
+                </td>
+            </tr>
+        }
+        </tbody>
+    </table>
+</div>

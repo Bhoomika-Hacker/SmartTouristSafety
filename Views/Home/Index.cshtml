@@ -1,0 +1,58 @@
+@{
+    ViewData["Title"] = "Home";
+}
+
+<div class="p-5 mb-4 bg-white rounded-3 shadow-sm">
+    <div class="row align-items-center">
+        <div class="col-md-8">
+            <h1 class="display-6 fw-bold" style="color: var(--sts-navy)">Smart Tourist Safety Monitoring &amp; Incident Response System</h1>
+            <p class="lead text-muted">
+                A unified platform combining <strong>AI-based anomaly detection</strong>, <strong>real-time geo-fencing</strong>,
+                and a <strong>blockchain-secured digital identity</strong> for every registered tourist &mdash; built as an
+                ASP.NET Core MVC + Web API application.
+            </p>
+            @if (User.Identity?.IsAuthenticated == true)
+            {
+                <a class="btn btn-lg text-white" style="background-color: var(--sts-accent)" asp-controller="Dashboard" asp-action="Index">
+                    <i class="bi bi-speedometer2"></i> Open Dashboard
+                </a>
+            }
+            else
+            {
+                <a class="btn btn-lg text-white" style="background-color: var(--sts-accent)" asp-controller="Account" asp-action="Login">
+                    <i class="bi bi-box-arrow-in-right"></i> Authority Login
+                </a>
+            }
+        </div>
+        <div class="col-md-4 text-center">
+            <i class="bi bi-shield-check" style="font-size: 8rem; color: var(--sts-navy-light);"></i>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-md-4">
+        <div class="card-stat">
+            <i class="bi bi-cpu" style="font-size:1.8rem;color:var(--sts-accent)"></i>
+            <h5 class="mt-2">AI Risk Scoring</h5>
+            <p class="text-muted mb-0">Every location ping is scored 0&ndash;100 using a transparent, auditable risk model
+                that factors in zone danger level, inactivity, route deviation, and time of day.</p>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card-stat">
+            <i class="bi bi-geo-alt" style="font-size:1.8rem;color:var(--sts-accent)"></i>
+            <h5 class="mt-2">Geo-Fencing</h5>
+            <p class="text-muted mb-0">Safe, Caution, High-Risk, and Restricted zones are monitored in real time; entering
+                a restricted zone automatically raises a critical incident.</p>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card-stat">
+            <i class="bi bi-link-45deg" style="font-size:1.8rem;color:var(--sts-accent)"></i>
+            <h5 class="mt-2">Blockchain Digital ID</h5>
+            <p class="text-muted mb-0">Each tourist is issued a hash-chained digital ID block, making tampering
+                detectable and identity verification instant.</p>
+        </div>
+    </div>
+</div>

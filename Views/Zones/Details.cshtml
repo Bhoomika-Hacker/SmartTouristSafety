@@ -1,0 +1,31 @@
+@model GeoFenceZone
+@{
+    ViewData["Title"] = "Zone Details";
+
+    string BadgeClass(RiskLevel r) => r switch
+    {
+        RiskLevel.Safe => "badge-risk-safe",
+        RiskLevel.Caution => "badge-risk-caution",
+        RiskLevel.HighRisk => "badge-risk-highrisk",
+        RiskLevel.Restricted => "badge-risk-restricted",
+        _ => "bg-secondary"
+    };
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2 class="section-title mb-0">@Model.Name <span class="badge @BadgeClass(Model.RiskLevel)">@Model.RiskLevel</span></h2>
+    <div>
+        <a class="btn btn-outline-secondary btn-sm" asp-action="Edit" asp-route-id="@Model.Id"><i class="bi bi-pencil"></i> Edit</a>
+        <a class="btn btn-outline-secondary btn-sm" asp-action="Index"><i class="bi bi-arrow-left"></i> Back</a>
+    </div>
+</div>
+
+<div class="table-card p-4" style="max-width: 600px;">
+    <p class="text-muted">@Model.Description</p>
+    <table class="table table-borderless table-sm mb-0">
+        <tr><td class="text-muted">Center</td><td>@Model.Latitude.ToString("F6"), @Model.Longitude.ToString("F6")</td></tr>
+        <tr><td class="text-muted">Radius</td><td>@Model.RadiusMeters.ToString("N0") meters</td></tr>
+        <tr><td class="text-muted">Status</td><td>@(Model.IsActive ? "Active" : "Inactive")</td></tr>
+        <tr><td class="text-muted">Created</td><td>@Model.CreatedAt.ToLocalTime().ToString("g")</td></tr>
+    </table>
+</div>
