@@ -5,6 +5,7 @@ using SmartTouristSafety.Services;
 using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
+//MVC
 
 // MVC + Web API controllers (both use the same [Controller] pipeline in ASP.NET Core)
 builder.Services.AddControllersWithViews()
